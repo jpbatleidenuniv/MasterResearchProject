@@ -1,5 +1,4 @@
 import numpy as np
-
 from swiftsimio import SWIFTDataset
 from swiftsimio.objects import cosmo_quantity
 from tqdm import tqdm
@@ -14,7 +13,7 @@ def fof_naive(data: SWIFTDataset, l_link: cosmo_quantity, sentinel: int = -1):
         sentinel (float): the value for ungrouped particles
 
     Returns:
-        The FoF ids (ndarray), also in-place adds the data.stars.fof_ids_naive group in the SWIFTDataset"""
+        The unique FoF ids, the first (representative) particle, and the count of each FoF group. Basically the output of np.unique(*, return_index=True, return_counts=True)"""
 
     positions = data.stars.coordinates.to("kpc").value
     l_link2 = l_link.to("kpc").value ** 2
@@ -53,7 +52,7 @@ def fof_naive(data: SWIFTDataset, l_link: cosmo_quantity, sentinel: int = -1):
             elif id_i != id_j:
                 fof_ids[fof_ids == id_j] = id_i
 
-    ids, counts = np.unique(fof_ids, return_counts=True)
+    ids, first, counts = np.unique(fof_ids, return_index=True, return_counts=True)
 
     n_groups = np.count_nonzero(ids != sentinel)
     n_ungrouped = counts[ids == sentinel].sum()
@@ -63,4 +62,4 @@ def fof_naive(data: SWIFTDataset, l_link: cosmo_quantity, sentinel: int = -1):
     print(f"Ungrouped particles: {n_ungrouped} / {n}")
     data.stars.fof_ids_naive = fof_ids
 
-    return fof_ids
+    return ids, first, counts

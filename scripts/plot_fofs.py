@@ -10,6 +10,7 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Circle
 from swiftsimio.visualisation.projection import project_pixel_grid
 
+from mrp.fof import fof_naive
 from mrp.swift_utils import load_region, sim_files_from_name, subvolume_regions
 
 """Plot one region of the simulation with FOF groups marked"""
@@ -106,6 +107,28 @@ if __name__ == "__main__":
         zorder=3,
     )
 
+    # Naive FoF
+    SENTINEL = np.iinfo(np.int32).max
+    l_emp = sw.cosmo_quantity(
+        0.78, units="kpc", cosmo_factor=boxsize.cosmo_factor, comoving=True
+    )
+    unique_ids, representative, counts_naive = fof_naive(
+        data=data, l_link=l_emp, sentinel=SENTINEL
+    )
+    naive_fof_ids = data.stars.fof_ids_naive
+
+    keep = unique_ids != SENTINEL  # drops the ungrouped entry
+    ax.scatter(
+        pos[representative[keep], 0],
+        pos[representative[keep], 1],
+        s=10 + 25 * np.log10(counts_naive[keep]),
+        marker="s",
+        facecolors="none",
+        edgecolors="magenta",
+        linewidths=0.8,
+        zorder=4,
+    )
+
     #  ───── halo catalogue FoF groups: centre + radius (red) ─────
     cat_centres = fof_cat.centres.to_value("Mpc")
     cat_radii = fof_cat.radii.to_comoving().to_value("Mpc")
@@ -156,7 +179,16 @@ if __name__ == "__main__":
             ls="",
             mfc="none",
             mec="white",
-            label="Star FoF group (one member star)",
+            label="Snapshot FoF group (one member star)",
+        ),
+        Line2D(
+            [],
+            [],
+            marker="s",
+            ls="",
+            mfc="none",
+            mec="magenta",
+            label="Naive star FoF (one member star)",
         ),
         Line2D([], [], marker="+", ls="", color="red", label="Catalogue FoF centre"),
         Line2D(
@@ -183,3 +215,92 @@ if __name__ == "__main__":
     plt.tight_layout()
     save_dir.mkdir(exist_ok=True)
     fig.savefig(save_dir / f"{sim_name}_region{TILE_INDEX}.png", dpi=IMAGE_DPI)
+
+    swift_ids = np.asarray(stars.fofgroup_ids)
+    naive_ids = np.asarray(stars.fof_ids_naive)
+    keep = unique_ids != SENTINEL
+
+    def colour_stars(ax, ids, xy, title, s=4):
+        """Grouped stars coloured by group label, ungrouped (sentinel) stars grey."""
+        grouped = ids != SENTINEL
+        ax.scatter(xy[~grouped, 0], xy[~grouped, 1], s=s / 2, color="0.35", lw=0)
+        ax.scatter(
+            xy[grouped, 0], xy[grouped, 1], s=s, c=ids[grouped] % 20, cmap="tab20", lw=0
+        )
+        ax.set_title(title, fontsize=12)
+        ax.set_aspect("equal")
+
+    # ── Figure A: whole tile, stars coloured by group ───────────────────
+    fig, axes = plt.subplots(1, 2, figsize=(14, 7), sharex=True, sharey=True)
+    colour_stars(axes[0], swift_ids, pos[:, :2], f"SWIFT FoF ({len(group_ids)} groups)")
+    colour_stars(
+        axes[1], naive_ids, pos[:, :2], f"Naive FoF, l = 0.78 kpc ({keep.sum()} groups)"
+    )
+    for ax in axes:
+        ax.set_xlabel("X [cMpc]")
+    axes[0].set_ylabel("Y [cMpc]")
+    axes[0].set_xlim(extent[0], extent[1])
+    axes[0].set_ylim(extent[2], extent[3])
+    fig.tight_layout()
+    fig.savefig(save_dir / f"{sim_name}_region{TILE_INDEX}_colour.png", dpi=300)
+
+    # ── Figure B: zoom on the N largest SWIFT groups ────────────────────
+    N_ZOOM = 4
+    largest = np.argsort(counts)[::-1][:N_ZOOM]
+    fig, axes = plt.subplots(2, N_ZOOM, figsize=(4 * N_ZOOM, 8.5))
+
+    for col, g in enumerate(largest):
+        members = swift_ids == group_ids[g]
+        centre = np.median(pos[members, :2], axis=0)
+        half = max(0.6 * np.ptp(pos[members, :2], axis=0).max(), 0.02)  # Mpc
+        window = (np.abs(pos[:, :2] - centre) < half).all(axis=1)  # all stars in view
+
+        # top: the SWIFT group highlighted among its surroundings
+        ax = axes[0, col]
+        ax.scatter(
+            pos[window & ~members, 0], pos[window & ~members, 1], s=3, color="0.4", lw=0
+        )
+        ax.scatter(pos[members, 0], pos[members, 1], s=4, color="tab:red", lw=0)
+        ax.set_title(f"SWIFT group {group_ids[g]}\n{counts[g]} stars", fontsize=11)
+
+        # bottom: the same window coloured by naive group
+        ax = axes[1, col]
+        colour_stars(ax, naive_ids[window], pos[window, :2], "")
+        n_in = len(np.unique(naive_ids[members & (naive_ids != SENTINEL)]))
+        ax.set_title(f"Naive: {n_in} groups in this SWIFT group", fontsize=11)
+
+        for ax in axes[:, col]:
+            ax.set_xlim(centre[0] - half, centre[0] + half)
+            ax.set_ylim(centre[1] - half, centre[1] + half)
+            ax.set_aspect("equal")
+    axes[1, 0].set_xlabel("X [cMpc]")
+    axes[1, 0].set_ylabel("Y [cMpc]")
+    fig.tight_layout()
+    fig.savefig(save_dir / f"{sim_name}_region{TILE_INDEX}_zoom.png", dpi=300)
+
+    # ── Figure C: group size distributions + fraction grouped ───────────
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 4.5))
+    bins = np.logspace(
+        0, np.log10(max(counts.max(), counts_naive[keep].max())) + 0.1, 25
+    )
+    ax1.hist(counts, bins=bins, histtype="step", lw=1.5, label="SWIFT FoF")
+    ax1.hist(
+        counts_naive[keep],
+        bins=bins,
+        histtype="step",
+        lw=1.5,
+        color="magenta",
+        label="Naive FoF",
+    )
+    ax1.set_xscale("log")
+    ax1.set_yscale("log")
+    ax1.set_xlabel("Stars per group")
+    ax1.set_ylabel("Number of groups")
+    ax1.legend()
+
+    frac = [(swift_ids != SENTINEL).mean(), (naive_ids != SENTINEL).mean()]
+    ax2.bar(["SWIFT", "Naive"], frac, color=["tab:blue", "magenta"])
+    ax2.set_ylabel("Fraction of stars in a group")
+    ax2.set_ylim(0, 1)
+    fig.tight_layout()
+    fig.savefig(save_dir / f"{sim_name}_region{TILE_INDEX}_stats.png", dpi=300)

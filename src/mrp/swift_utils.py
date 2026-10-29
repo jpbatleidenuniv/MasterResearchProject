@@ -86,7 +86,7 @@ def subvolume_regions(boxsize: sw.cosmo_array, n_side: int = 3):
 
 
 def load_tile_data(sim_name, snapshot, tile_index):
-    snapshot_file, catalogue_file = sim_files_from_name(
+    snapshot_file, _ = sim_files_from_name(
         sim_name=sim_name, snapshot=snapshot, data_dir=Path("data/colibre")
     )
     boxsize = sw.mask(snapshot_file).metadata.boxsize
