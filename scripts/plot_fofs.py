@@ -1,22 +1,12 @@
-from mrp.groups import valid_group_mask
-from swiftsimio import cosmo_array
-from mrp.utils import check_sentinel
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import swiftsimio as sw
-from icecream import ic
-from matplotlib.collections import PatchCollection
-from matplotlib.colors import LogNorm
-from matplotlib.lines import Line2D
-from matplotlib.patches import Circle
-from swiftsimio.visualisation.projection import project_pixel_grid
 
-from mrp.swift_utils import load_region, sim_files_from_name, subvolume_regions
-from mrp.fof import fof_naive
-from mrp.plot.plot_box import plot_box_masses
 from mrp.groups import centre_of_mass
+from mrp.plot.plot_box import plot_box_masses
+from mrp.swift_utils import load_region, sim_files_from_name, subvolume_regions
 
 """Plot one region of the simulation with FOF groups marked"""
 

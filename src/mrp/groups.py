@@ -34,9 +34,7 @@ def centre_of_mass(
 
     # Note: uniques[inverse] = original
     # inverse is basically another label for the fof_ids
-    uniques, inverse, count = np.unique(
-        data_gr[is_grouped], return_inverse=True, return_counts=True
-    )
+    uniques, inverse = np.unique(data_gr[is_grouped], return_inverse=True)
 
     pos = data.coordinates[is_grouped].to("Mpc").to_ndarray()
     masses = data.masses[is_grouped].to("Msun").to_ndarray()

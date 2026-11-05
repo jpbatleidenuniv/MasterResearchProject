@@ -1,6 +1,5 @@
-from swiftsimio import cosmo_array
 import numpy as np
-from swiftsimio import SWIFTDataset
+from swiftsimio import SWIFTDataset, cosmo_array
 from swiftsimio.objects import cosmo_quantity
 from tqdm import tqdm
 
