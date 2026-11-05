@@ -85,12 +85,31 @@ def subvolume_regions(boxsize: sw.cosmo_array, n_side: int = 3):
     return fractions * boxsize.reshape(1, 3, 1)
 
 
-def load_tile_data(sim_name, snapshot, tile_index):
-    snapshot_file, _ = sim_files_from_name(
+def load_tile_data(sim_name: str, snapshot: int, tile_index: int, n_side: int = 3):
+    """Load simulation box tile, for a simulation divided in (n x n)-tiles. Counting from top-left.
+
+    Args:
+        sim_name (str) : The simulation name e.g. l25m6
+        snapshot (int) : simulation snapshot
+        tile_index (int): the index of the tile from top left
+        n_side (int): The number of divisions in each dimension, i.e. n_side = 3 -> (3,3) grid.
+
+    Returns:
+        The data of the tile (SWIFTDataset)"""
+    snapshot_file, catalogue_file = sim_files_from_name(
         sim_name=sim_name, snapshot=snapshot, data_dir=Path("data/colibre")
     )
     boxsize = sw.mask(snapshot_file).metadata.boxsize
-    region = subvolume_regions(boxsize)[tile_index]  # (3, 2)
+    region = subvolume_regions(boxsize, n_side=n_side)[tile_index]  # (3, 2)
 
     data = load_region(snapshot_file, region)
-    return data
+
+    boxsize_cat = sw.mask(catalogue_file).metadata.boxsize
+    region_cat = subvolume_regions(boxsize_cat, n_side=n_side)[tile_index]  # (3, 2)
+    assert region_cat == region, (
+        "The catalogue and the snapshot data are not masked in the same region."
+    )
+
+    catalogue = load_region(catalogue_file, region_cat)
+
+    return data, catalogue

@@ -12,7 +12,7 @@ if __name__ == "__main__":
     sim_name = "L25m7"
     snapshot_nr = 127
     TILE_INDEX = 4
-    data = load_tile_data(sim_name, snapshot=snapshot_nr, tile_index=TILE_INDEX)
+    data, _ = load_tile_data(sim_name, snapshot=snapshot_nr, tile_index=TILE_INDEX)
     coordinates = data.stars.coordinates
 
     sentinel = np.iinfo(np.int16).max

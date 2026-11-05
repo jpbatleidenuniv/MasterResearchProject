@@ -1,3 +1,4 @@
+from swiftsimio import cosmo_array
 import numpy as np
 from swiftsimio import SWIFTDataset
 from swiftsimio.objects import cosmo_quantity
@@ -60,6 +61,12 @@ def fof_naive(data: SWIFTDataset, l_link: cosmo_quantity, sentinel: int = -1):
     print("Naive FoF algorithm completed.")
     print(f"Number of groups found: {n_groups}")
     print(f"Ungrouped particles: {n_ungrouped} / {n}")
-    data.stars.fof_ids_naive = fof_ids
+    data.stars.fof_ids_naive = cosmo_array(
+        fof_ids,
+        units="dimensionless",
+        comoving=True,
+        scale_factor=data.metadata.scale_factor,
+        scale_exponent=1.0,
+    )
 
     return ids, first, counts
