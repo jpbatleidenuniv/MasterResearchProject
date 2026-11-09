@@ -8,6 +8,7 @@ dependencies = [
     "matplotlib>=3.11.2",
     "numpy>=2.4.6",
     "scipy>=1.17.1",
+    "scipy-stubs>=1.17.1.5",
     "swiftsimio>=12.1.4",
     "types-tqdm>=4.70.0.20260906",
 ]
@@ -24,5 +25,7 @@ dev = [
 [tool.uv]
 package = true
 
+
 [tool.pyrefly]
 errors.missing-attribute = false
+project-includes = ["src", "tests"]
